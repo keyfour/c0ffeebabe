@@ -10,6 +10,8 @@ import time
 import json
 
 default_input_file = "wordlist.txt"
+number_of_iterations = 10000
+dispersion = 1000000000
 
 
 def read_file(input_file):
@@ -51,34 +53,44 @@ def find_collisions(input_str, output_str, length):
         return 0
 
 
-if __name__ == '__main__':
-
-    input_words = get_dictionary(default_input_file)
-
+def process(num, rnd):
     output = {}
     for word in input_words:
         for base_str in input_words[word]:
             print("Processing {0}".format(base_str))
-            output[base_str] = []
-            for i in range(0, 10000):
-                rand_str = str(random.randint(0, 10000000000))
+            for i in range(0, num):
+                rand_str = str(random.randint(0, rnd))
                 if random.randint(0, 10) % 2 == 0:
                     input_str = base_str + rand_str
                 elif random.randint(0, 10) % 3 == 0:
-                    input_str = rand_str + base_str + str(random.randint(0, 10000000000))
+                    input_str = rand_str + base_str + str(random.randint(0, rnd))
                 else:
                     input_str = rand_str + base_str
                 output_str = hashlib.md5(input_str.encode("utf-8")).hexdigest()
                 collision = find_collisions(input_str, output_str, len(input_str)) * 100.0 / len(input_str)
                 if collision > 50.0:
-                    print("Find collision {0}".format(collision))
-                output[base_str].append({"input_str": input_str, "output_str": output_str, "collision": collision})
+                    if output[base_str] is None:
+                        output[base_str] = []
+                    print("Find collision {0}\% {1} {2}".format(collision, input_str, output_str))
+                    output[base_str].append({"input_str": input_str, "output_str": output_str, "collision": collision})
+    return output
 
-    output_file = str(calendar.timegm(time.gmtime())) + ".json"
-    try:
-        with open(output_file, "a") as f:
-            jdata = json.dumps(output)
-            f.write(jdata)
-            print("Written to {0} {1}".format(output_file, len(jdata)))
-    except PermissionError:
-        print("Can't write to file")
+
+if __name__ == '__main__':
+
+    input_words = get_dictionary(default_input_file)
+
+    while True:
+        output = process(number_of_iterations, dispersion)
+        if len(output) > 0:
+            output_file = str(calendar.timegm(time.gmtime())) + ".json"
+            try:
+                with open(output_file, "a") as f:
+                    jdata = json.dumps(output)
+                    f.write(jdata)
+                    print("Written to {0} {1}".format(output_file, len(jdata)))
+            except PermissionError:
+                print("Can't write to file")
+        else:
+            print("Empty output, may next time be lucky!")
+        time.sleep(1)
